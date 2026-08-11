@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>執筆帳</title>
+<style>
+:root{
+  --bg:#FFFDF5;
+  --bg-sub:#FBF4E2;
+  --paper:#FFFFFF;
+  --rule:#E4D8BC;
+  --rule-strong:#D8C9A8;
+  --ink:#3A3D49;
+  --ink-mid:#6B6E7A;
+  --ink-soft:#8A8780;
+  --accent:#12B3A6;
+  --accent-soft:#E3F7F5;
+  --coral:#FF5A5F;
+  --gold:#FFB020;
+  --green:#35C759;
+  --violet:#B06BF5;
+  --radius-sm:8px;
+  --radius:12px;
+  --radius-lg:18px;
+  --gothic:"Noto Sans JP","Hiragino Sans","Yu Gothic Medium","Yu Gothic","Meiryo",system-ui,sans-serif;
+  --mincho:"Noto Serif JP","Hiragino Mincho ProN","Yu Mincho","YuMincho","MS PMincho",serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--gothic);font-size:14px;line-height:1.6;
+  overflow:hidden;
+}
+button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+
+/* ---------- 共通部品 ---------- */
+.btn{
+  border:1.5px solid var(--rule-strong);background:var(--paper);
+  border-radius:999px;padding:6px 14px;font-weight:700;color:var(--ink);
+  transition:background .12s,border-color .12s;white-space:nowrap;
+}
+.btn:hover{background:var(--bg-sub)}
+.btn:active{background:var(--rule)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.ghost{border-color:transparent;background:transparent;font-weight:600}
+.btn.ghost:hover{background:var(--bg-sub)}
+.btn.danger{border-color:var(--coral);color:var(--coral)}
+.btn.danger:hover{background:#FFECEC}
+.btn.sm{padding:3px 10px;font-size:12px}
+.btn:disabled{opacity:.4;cursor:default}
+.field{
+  border:1.5px solid var(--rule-strong);border-radius:var(--radius-sm);
+  padding:6px 10px;background:var(--paper);width:100%;
+}
+.field:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+.muted{color:var(--ink-soft)}
+.sep{height:1px;background:var(--rule);margin:12px 0}
+
+/* ---------- 全体レイアウト ---------- */
+#app{display:flex;flex-direction:column;height:100%}
+
+header#bar{
+  flex:0 0 auto;display:flex;align-items:center;gap:8px;
+  padding:8px 12px;background:var(--paper);
+  border-bottom:1.5px solid var(--rule-strong);
+  padding-top:calc(8px + env(safe-area-inset-top));
+}
+#logo{
+  width:30px;height:30px;flex:0 0 auto;border-radius:var(--radius-sm);
+  background:var(--accent);color:#fff;display:grid;place-items:center;
+  font-weight:800;font-size:15px;
+}
+#workSel{
+  border:1.5px solid var(--rule-strong);border-radius:999px;
+  padding:5px 10px;background:var(--paper);max-width:38vw;font-weight:700;
+}
+#barSpacer{flex:1 1 auto}
+#saveState{font-size:11px;color:var(--ink-soft);text-align:right;line-height:1.35;white-space:nowrap}
+#saveState b{color:var(--accent);font-weight:700}
+#saveState.dirty b{color:var(--gold)}
+#saveState .sv-sep{display:none}
+
+main{flex:1 1 auto;display:flex;min-height:0}
+
+.pane{display:flex;flex-direction:column;min-height:0;min-width:0}
+.pane-head{
+  flex:0 0 auto;display:flex;align-items:center;gap:6px;
+  padding:8px 10px;border-bottom:1.5px solid var(--rule);
+  background:var(--bg-sub);
+}
+.pane-title{font-weight:800;font-size:12px;letter-spacing:.06em;color:var(--ink-mid)}
+.pane-body{flex:1 1 auto;overflow:auto;-webkit-overflow-scrolling:touch}
+
+#paneScenes{flex:0 0 268px;border-right:1.5px solid var(--rule-strong);background:var(--bg)}
+#paneWrite{flex:1 1 auto;background:var(--bg)}
+#paneTags{flex:0 0 320px;border-left:1.5px solid var(--rule-strong);background:var(--bg)}
+
+/* ---------- シーン一覧（付箋） ---------- */
+#sceneList{padding:10px;display:flex;flex-direction:column;gap:8px}
+.scene-card{
+  border:1.5px solid var(--rule-strong);border-radius:var(--radius);
+  background:var(--paper);padding:8px 8px 8px 6px;
+  display:flex;gap:6px;align-items:flex-start;
+  cursor:pointer;position:relative;
+}
+.scene-card.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.scene-card.dragging{opacity:.55;border-style:dashed}
+.scene-card .grip{
+  flex:0 0 auto;width:22px;align-self:stretch;display:grid;place-items:center;
+  color:var(--rule-strong);font-size:15px;cursor:grab;touch-action:none;
+  border-radius:6px;user-select:none;
+}
+.scene-card .grip:active{cursor:grabbing;background:var(--bg-sub)}
+.scene-main{flex:1 1 auto;min-width:0}
+.scene-no{font-size:10px;font-weight:800;color:var(--ink-soft);letter-spacing:.08em}
+.scene-name{font-size:14px;font-weight:700;line-height:1.35;word-break:break-word;margin-top:1px}
+.scene-name.empty{color:var(--ink-soft);font-weight:500}
+.scene-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px}
+.chip{
+  font-size:10px;font-weight:800;border-radius:999px;padding:1px 8px;
+  border:1.2px solid transparent;white-space:nowrap;
+}
+.chip.st-draft{background:#E1ECFF;color:#2159B8;border-color:#BFD6FF}
+.chip.st-revise{background:#FFF1C2;color:#8A6600;border-color:#F0DC96}
+.chip.st-final{background:#DFF6E5;color:#1E7A3C;border-color:#B4E5C3}
+.scene-count{font-size:11px;color:var(--ink-soft);font-weight:600}
+.dots{display:flex;gap:3px;margin-left:auto}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.scene-move{display:flex;flex-direction:column;gap:2px;flex:0 0 auto}
+.scene-move button{
+  border:1.2px solid var(--rule);background:var(--paper);border-radius:6px;
+  width:24px;height:19px;line-height:1;padding:0;font-size:10px;color:var(--ink-mid);
+}
+.scene-move button:hover{background:var(--bg-sub)}
+#dropLine{height:3px;background:var(--accent);border-radius:2px;margin:-4px 0}
+
+/* ---------- 執筆 ---------- */
+#writeHead{
+  flex:0 0 auto;padding:10px 12px 8px;border-bottom:1.5px solid var(--rule);
+  background:var(--paper);
+}
+#sceneTitle{
+  border:none;background:transparent;font-size:18px;font-weight:800;width:100%;
+  padding:2px 0;border-bottom:1.5px dashed var(--rule);
+}
+#sceneTitle:focus{outline:none;border-bottom-color:var(--accent)}
+#toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tagbtn{
+  border:1.5px solid;border-radius:999px;padding:4px 12px;font-weight:800;font-size:12px;
+  background:var(--paper);
+}
+.tagbtn:active{transform:translateY(1px)}
+#charCount{margin-left:auto;font-size:11px;color:var(--ink-soft);font-weight:700;white-space:nowrap}
+
+#editorWrap{
+  flex:1 1 auto;position:relative;min-height:0;margin:0;overflow:hidden;background:var(--paper);
+}
+#overlay,#body{
+  position:absolute;inset:0;width:100%;height:100%;
+  margin:0;border:0;padding:16px 18px 40vh;
+  font-family:var(--gothic);font-size:16px;line-height:2;
+  letter-spacing:.02em;
+  white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;
+  tab-size:4;
+}
+body.serif #overlay,body.serif #body{font-family:var(--mincho)}
+#overlay{
+  overflow:hidden;color:transparent;pointer-events:none;z-index:1;
+  background:transparent;
+}
+#body{
+  z-index:2;background:transparent;color:var(--ink);
+  resize:none;overflow:auto;-webkit-overflow-scrolling:touch;
+}
+#body:focus{outline:none}
+#overlay .tg{
+  border-radius:5px;padding:1px 0;
+  box-shadow:0 0 0 1.5px var(--tc) inset;
+  background:var(--tbg);
+}
+body.nohl #overlay .tg{background:transparent;box-shadow:none}
+
+/* ---------- タグ一覧 ---------- */
+#tagScope{display:flex;gap:4px;align-items:center}
+#tagScope button{
+  border:1.2px solid var(--rule-strong);background:var(--paper);border-radius:999px;
+  padding:2px 10px;font-size:11px;font-weight:800;color:var(--ink-mid);
+}
+#tagScope button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#tagList{padding:10px;display:flex;flex-direction:column;gap:8px}
+.tag-item{
+  border:1.5px solid var(--rule);border-left-width:5px;border-radius:var(--radius-sm);
+  background:var(--paper);padding:7px 9px;
+}
+.tag-item .th{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.tag-kind{font-size:10px;font-weight:800;border-radius:999px;padding:1px 8px}
+.tag-scene{font-size:10px;color:var(--ink-soft);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag-body{font-size:13px;font-weight:700;word-break:break-word}
+.tag-body.empty{color:var(--ink-soft);font-weight:500}
+.tag-ctx{font-size:11px;color:var(--ink-soft);margin-top:3px;line-height:1.5;word-break:break-word}
+.tag-acts{display:flex;gap:5px;margin-top:6px}
+.empty-note{padding:24px 16px;text-align:center;color:var(--ink-soft);font-size:12px;line-height:1.9}
+
+/* ---------- モーダル ---------- */
+.modal-bg{
+  position:fixed;inset:0;background:rgba(58,61,73,.42);z-index:50;
+  display:flex;align-items:center;justify-content:center;padding:16px;
+}
+.modal{
+  background:var(--bg);border:1.5px solid var(--rule-strong);border-radius:var(--radius-lg);
+  width:100%;max-width:620px;max-height:88vh;display:flex;flex-direction:column;
+  box-shadow:0 18px 48px rgba(58,61,73,.22);overflow:hidden;
+}
+.modal-head{
+  display:flex;align-items:center;gap:8px;padding:12px 14px;
+  border-bottom:1.5px solid var(--rule-strong);background:var(--paper);
+}
+.modal-head h2{margin:0;font-size:15px;font-weight:800}
+.modal-body{padding:14px;overflow:auto;-webkit-overflow-scrolling:touch}
+.modal-foot{
+  padding:10px 14px;border-top:1.5px solid var(--rule);background:var(--paper);
+  display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;
+}
+h3.sect{font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--ink-mid);margin:0 0 8px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{
+  border:1.5px solid var(--rule-strong);background:var(--paper);border-radius:999px;
+  padding:4px 13px;font-size:12px;font-weight:800;color:var(--ink-mid);
+}
+.tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#exportOut{
+  width:100%;height:290px;border:1.5px solid var(--rule-strong);border-radius:var(--radius-sm);
+  padding:10px;background:var(--paper);font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  font-size:12px;line-height:1.65;resize:vertical;
+}
+.tagtype-row{
+  display:flex;gap:6px;align-items:center;padding:6px;border:1.5px solid var(--rule);
+  border-radius:var(--radius-sm);background:var(--paper);margin-bottom:6px;
+}
+.swatch{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--rule-strong);flex:0 0 auto}
+.hexin{width:92px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.toggle{display:flex;align-items:center;gap:8px;padding:6px 0;font-weight:700}
+.toggle input{width:18px;height:18px;accent-color:var(--accent)}
+
+/* ---------- トースト ---------- */
+#toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom));
+  background:var(--ink);color:#fff;padding:9px 18px;border-radius:999px;
+  font-size:13px;font-weight:700;z-index:80;opacity:0;pointer-events:none;
+  transition:opacity .2s;max-width:86vw;text-align:center;
+}
+#toast.show{opacity:.95}
+
+/* ---------- 下部タブ（スマホ） ---------- */
+#tabbar{display:none}
+
+@media (max-width:899px){
+  main>.pane{display:none;flex:1 1 auto;border:0}
+  main>.pane.show{display:flex}
+  #tabbar{
+    flex:0 0 auto;display:flex;background:var(--paper);
+    border-top:1.5px solid var(--rule-strong);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  #tabbar button{
+    flex:1 1 0;border:0;background:transparent;padding:9px 4px 8px;
+    font-size:11px;font-weight:800;color:var(--ink-soft);
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    border-top:3px solid transparent;
+  }
+  #tabbar button.on{color:var(--accent);border-top-color:var(--accent);background:var(--accent-soft)}
+  #tabbar .ic{font-size:16px;line-height:1}
+  #tabbar .badge{
+    font-size:9px;font-weight:800;background:var(--coral);color:#fff;
+    border-radius:999px;padding:0 5px;margin-left:3px;
+  }
+  #overlay,#body{font-size:16px;padding:14px 14px 45vh}
+  #paneScenes,#paneTags{flex:1 1 auto}
+  .modal{max-height:92vh}
+
+  /* 上の帯：狭い画面では二段に折り返す */
+  header#bar{flex-wrap:wrap;gap:6px;padding:6px 8px;padding-top:calc(6px + env(safe-area-inset-top))}
+  #barSpacer{display:none}
+  #workSel{flex:1 1 80px;min-width:0;max-width:none;padding:5px 8px}
+  header#bar .btn{padding:5px 10px;font-size:12px;flex:0 0 auto}
+  #logo{width:28px;height:28px;font-size:14px}
+  #saveState{
+    order:10;flex:1 0 100%;text-align:left;font-size:10.5px;
+    border-top:1px dashed var(--rule);padding-top:3px;
+  }
+  #saveState .sv-br{display:none}
+  #saveState .sv-sep{display:inline;font-style:normal;margin:0 5px;color:var(--rule-strong)}
+}
+@media (min-width:900px){
+  main>.pane{display:flex !important}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header id="bar">
+    <div id="logo">筆</div>
+    <select id="workSel" title="作品を選ぶ"></select>
+    <button class="btn ghost sm" id="btnWorks" title="作品の管理">作品…</button>
+    <div id="barSpacer"></div>
+    <div id="saveState"></div>
+    <button class="btn sm" id="btnExport">書き出し</button>
+    <button class="btn ghost sm" id="btnSettings" title="設定">⚙</button>
+  </header>
+
+  <main>
+    <!-- シーン -->
+    <section class="pane show" id="paneScenes">
+      <div class="pane-head">
+        <span class="pane-title">シーン</span>
+        <div style="flex:1"></div>
+        <button class="btn sm primary" id="btnAddScene">＋ 追加</button>
+      </div>
+      <div class="pane-body"><div id="sceneList"></div></div>
+    </section>
+
+    <!-- 執筆 -->
+    <section class="pane" id="paneWrite">
+      <div id="writeHead">
+        <input id="sceneTitle" placeholder="シーンの名前（例：夜の街道）" autocomplete="off">
+        <div id="toolbar"></div>
+      </div>
+      <div id="editorWrap">
+        <div id="overlay" aria-hidden="true"></div>
+        <textarea id="body" placeholder="ここに本文を。&#10;&#10;気になる箇所は、上のボタンで印を挟めます。&#10;文字を選んでから押すと、その直後に印が入ります。"
+          spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      </div>
+    </section>
+
+    <!-- タグ -->
+    <section class="pane" id="paneTags">
+      <div class="pane-head">
+        <span class="pane-title">印</span>
+        <div style="flex:1"></div>
+        <div id="tagScope">
+          <button data-scope="scene" class="on">このシーン</button>
+          <button data-scope="work">作品ぜんぶ</button>
+        </div>
+      </div>
+      <div class="pane-body"><div id="tagList"></div></div>
+    </section>
+  </main>
+
+  <nav id="tabbar">
+    <button data-pane="paneScenes" class="on"><span class="ic">▤</span><span>シーン</span></button>
+    <button data-pane="paneWrite"><span class="ic">✎</span><span>執筆</span></button>
+    <button data-pane="paneTags"><span class="ic">◈</span><span id="tabTagLabel">印</span></button>
+  </nav>
+</div>
+
+<div id="toast"></div>
+<div id="modalRoot"></div>
+
+<script>
+"use strict";
+(function(){
+
+/* =========================================================
+ *  0. 小道具
+ * =======================================================*/
+var $ = function(s,r){ return (r||document).querySelector(s); };
+var $$ = function(s,r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
+var esc = function(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); };
+var uid = function(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); };
+
+function pad2(n){ return (n<10?"0":"")+n; }
+function stamp(d){
+  d = d || new Date();
+  return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())+"_"+pad2(d.getHours())+pad2(d.getMinutes());
+}
+function hhmm(t){
+  if(!t) return null;
+  var d = new Date(t);
+  return pad2(d.getHours())+":"+pad2(d.getMinutes());
+}
+function ymdhm(t){
+  if(!t) return null;
+  var d = new Date(t);
+  return (d.getMonth()+1)+"/"+d.getDate()+" "+pad2(d.getHours())+":"+pad2(d.getMinutes());
+}
+function hexToRgba(hex,a){
+  var h = String(hex||"").replace("#","");
+  if(h.length===3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  if(!/^[0-9a-fA-F]{6}$/.test(h)) h = "8A8780";
+  var n = parseInt(h,16);
+  return "rgba("+((n>>16)&255)+","+((n>>8)&255)+","+(n&255)+","+a+")";
+}
+function normHex(v,fallback){
+  var h = String(v||"").trim().replace(/^#/,"");
+  if(h.length===3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  return /^[0-9a-fA-F]{6}$/.test(h) ? "#"+h.toUpperCase() : (fallback||"#8A8780");
+}
+var toastTimer = null;
+function toast(msg){
+  var el = $("#toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.classList.remove("show"); }, 2200);
+}
+
+/* =========================================================
+ *  1. データ
+ * =======================================================*/
+var KEY = "novel_v1_data";
+var KEY_META = "novel_v1_meta";
+
+var DEFAULT_TAGS = [
+  { id:"k", label:"考証",     color:"#FF5A5F" },
+  { id:"i", label:"言換",     color:"#FFB020" },
+  { id:"c", label:"コメント", color:"#12B3A6" },
+  { id:"t", label:"TODO",     color:"#B06BF5" }
+];
+var STATUSES = [
+  { id:"draft",  label:"下書き", cls:"st-draft"  },
+  { id:"revise", label:"推敲",   cls:"st-revise" },
+  { id:"final",  label:"確定",   cls:"st-final"  }
+];
+
+var state = null;
+var meta = { lastSavedAt:0, lastExportAt:0 };
+
+function freshState(){
+  var wid = uid();
+  var sid = uid();
+  return {
+    v: 1,
+    works: [ { id:wid, title:"はじめての作品" } ],
+    scenes: [ { id:sid, workId:wid, title:"", body:"", status:"draft", updatedAt:Date.now() } ],
+    tagTypes: DEFAULT_TAGS.map(function(t){ return {id:t.id,label:t.label,color:t.color}; }),
+    ui: { workId:wid, sceneId:sid, serif:false, highlight:true, tagScope:"scene", pane:"paneScenes" }
+  };
+}
+
+function load(){
+  var raw = null;
+  try { raw = localStorage.getItem(KEY); } catch(e){ raw = null; }
+  if(!raw){ state = freshState(); return; }
+  try {
+    var d = JSON.parse(raw);
+    state = normalize(d);
+  } catch(e){
+    console.error("保存データの読み取りに失敗しました", e);
+    state = freshState();
+  }
+  try {
+    var m = JSON.parse(localStorage.getItem(KEY_META)||"null");
+    if(m) meta = { lastSavedAt: m.lastSavedAt||0, lastExportAt: m.lastExportAt||0 };
+  } catch(e){}
+}
+
+function normalize(d){
+  d = d && typeof d === "object" ? d : {};
+  var s = {
+    v: 1,
+    works: Array.isArray(d.works) ? d.works : [],
+    scenes: Array.isArray(d.scenes) ? d.scenes : [],
+    tagTypes: Array.isArray(d.tagTypes) && d.tagTypes.length ? d.tagTypes : DEFAULT_TAGS.slice(),
+    ui: (d.ui && typeof d.ui==="object") ? d.ui : {}
+  };
+  s.works = s.works.filter(Boolean).map(function(w){
+    return { id: w.id || uid(), title: typeof w.title==="string" ? w.title : "無題" };
+  });
+  if(!s.works.length) s.works = [ { id:uid(), title:"はじめての作品" } ];
+
+  var workIds = {};
+  s.works.forEach(function(w){ workIds[w.id] = true; });
+
+  var seen = {};
+  s.scenes = s.scenes.filter(Boolean).map(function(sc){
+    var id = sc.id || uid();
+    if(seen[id]) id = uid();
+    seen[id] = true;
+    return {
+      id: id,
+      workId: workIds[sc.workId] ? sc.workId : s.works[0].id,
+      title: typeof sc.title==="string" ? sc.title : "",
+      body: typeof sc.body==="string" ? sc.body : "",
+      status: /^(draft|revise|final)$/.test(sc.status) ? sc.status : "draft",
+      updatedAt: sc.updatedAt || Date.now()
+    };
+  });
+  if(!s.scenes.length){
+    s.scenes = [ { id:uid(), workId:s.works[0].id, title:"", body:"", status:"draft", updatedAt:Date.now() } ];
+  }
+  s.tagTypes = s.tagTypes.filter(Boolean).map(function(t){
+    return { id: t.id || uid(), label: String(t.label||"印").slice(0,12), color: normHex(t.color,"#8A8780") };
+  });
+
+  var ui = s.ui;
+  s.ui = {
+    workId: workIds[ui.workId] ? ui.workId : s.works[0].id,
+    sceneId: ui.sceneId,
+    serif: !!ui.serif,
+    highlight: ui.highlight !== false,
+    tagScope: ui.tagScope === "work" ? "work" : "scene",
+    pane: ui.pane || "paneScenes"
+  };
+  var list = scenesOf(s, s.ui.workId);
+  if(!list.some(function(x){ return x.id === s.ui.sceneId; })){
+    s.ui.sceneId = list.length ? list[0].id : null;
+  }
+  return s;
+}
+
+function scenesOf(s, workId){
+  return s.scenes.filter(function(sc){ return sc.workId === workId; });
+}
+function curWork(){
+  return state.works.filter(function(w){ return w.id===state.ui.workId; })[0] || state.works[0];
+}
+function curScenes(){ return scenesOf(state, state.ui.workId); }
+function curScene(){
+  return state.scenes.filter(function(s){ return s.id===state.ui.sceneId; })[0] || null;
+}
+
+var saveTimer = null, dirty = false;
+function save(now){
+  dirty = true;
+  renderSaveState();
+  clearTimeout(saveTimer);
+  var doIt = function(){
+    try {
+      localStorage.setItem(KEY, JSON.stringify(state));
+      meta.lastSavedAt = Date.now();
+      localStorage.setItem(KEY_META, JSON.stringify(meta));
+      dirty = false;
+    } catch(e){
+      console.error(e);
+      toast("保存できませんでした（保存領域が一杯かもしれません）");
+    }
+    renderSaveState();
+  };
+  if(now) doIt(); else saveTimer = setTimeout(doIt, 500);
+}
+
+/* =========================================================
+ *  2. 印（タグ）の解析
+ * =======================================================*/
+// [考証:内容] ／ ［考証：内容］ ／ /* 内容 */
+var RE_BRACKET = /[\[［]\s*([^\[\]［］:：\n]{1,16})\s*[:：]([^\[\]［］\n]{0,400})[\]］]/g;
+var RE_COMMENT = /\/\*([\s\S]{0,600}?)\*\//g;
+
+function tagTypeByLabel(label){
+  var L = String(label||"").trim();
+  for(var i=0;i<state.tagTypes.length;i++){
+    if(state.tagTypes[i].label === L) return state.tagTypes[i];
+  }
+  return null;
+}
+function colorOf(label){
+  var t = tagTypeByLabel(label);
+  return t ? t.color : "#8A8780";
+}
+
+function findTags(text){
+  var out = [], m;
+  RE_BRACKET.lastIndex = 0;
+  while((m = RE_BRACKET.exec(text)) !== null){
+    out.push({ s:m.index, e:m.index+m[0].length, kind:m[1].trim(), content:m[2].trim(), raw:m[0] });
+  }
+  RE_COMMENT.lastIndex = 0;
+  while((m = RE_COMMENT.exec(text)) !== null){
+    out.push({ s:m.index, e:m.index+m[0].length, kind:"コメント", content:m[1].trim(), raw:m[0] });
+  }
+  out.sort(function(a,b){ return a.s - b.s; });
+  // 重なりを除く（先に始まったほうを残す）
+  var res = [], end = -1;
+  for(var i=0;i<out.length;i++){
+    if(out[i].s >= end){ res.push(out[i]); end = out[i].e; }
+  }
+  return res;
+}
+
+function stripTags(text){
+  return text.replace(RE_BRACKET, "").replace(RE_COMMENT, "");
+}
+function countChars(text){
+  // 改行と空白を除いた本文の字数（印は数えない）
+  return stripTags(text).replace(/\s/g, "").length;
+}
+function contextOf(text, tag, span){
+  span = span || 26;
+  var before = text.slice(Math.max(0, tag.s-span), tag.s);
+  var after  = text.slice(tag.e, tag.e+span);
+  // 前後に別の印が混ざると読みにくいので取り除く
+  before = stripTags(before);
+  after  = stripTags(after);
+  var cut = before.search(/[\]］][^\]］]*$/);
+  if(cut >= 0) before = before.slice(cut+1);
+  var cut2 = after.search(/[\[［]|\/\*/);
+  if(cut2 >= 0) after = after.slice(0, cut2);
+  before = before.replace(/\s+/g," ").replace(/^\s+|\s+$/g,"");
+  after  = after.replace(/\s+/g," ").replace(/^\s+|\s+$/g,"");
+  var head = (tag.s-span > 0 ? "…" : "");
+  var tail = (tag.e+span < text.length ? "…" : "");
+  return head + before + " ▮ " + after + tail;
+}
+
+/* =========================================================
+ *  3. 描画
+ * =======================================================*/
+function renderAll(){
+  renderWorkSel();
+  renderScenes();
+  renderEditorHead();
+  renderOverlay();
+  renderTags();
+  renderSaveState();
+  document.body.classList.toggle("serif", !!state.ui.serif);
+  document.body.classList.toggle("nohl", !state.ui.highlight);
+}
+
+function renderWorkSel(){
+  var sel = $("#workSel");
+  sel.innerHTML = state.works.map(function(w){
+    return '<option value="'+esc(w.id)+'">'+esc(w.title||"無題")+'</option>';
+  }).join("");
+  sel.value = state.ui.workId;
+}
+
+function renderSaveState(){
+  var el = $("#saveState");
+  var s = dirty ? "<b>書きかけ</b>" : ("<b>"+(hhmm(meta.lastSavedAt)||"—")+"</b> 保存");
+  var x = meta.lastExportAt ? ymdhm(meta.lastExportAt) : "まだ";
+  el.className = dirty ? "dirty" : "";
+  el.innerHTML = s + '<br class="sv-br"><i class="sv-sep">／</i>書き出し ' + esc(x);
+}
+
+function renderScenes(){
+  var list = curScenes();
+  var wrap = $("#sceneList");
+  if(!list.length){
+    wrap.innerHTML = '<div class="empty-note">シーンがまだございません。<br>「＋ 追加」から始められます。</div>';
+    return;
+  }
+  wrap.innerHTML = list.map(function(sc, i){
+    var tags = findTags(sc.body);
+    var byKind = {};
+    tags.forEach(function(t){ byKind[t.kind] = (byKind[t.kind]||0)+1; });
+    var dots = Object.keys(byKind).slice(0,6).map(function(k){
+      return '<span class="dot" title="'+esc(k)+' '+byKind[k]+'" style="background:'+colorOf(k)+'"></span>';
+    }).join("");
+    var st = STATUSES.filter(function(s){ return s.id===sc.status; })[0] || STATUSES[0];
+    var nm = sc.title ? esc(sc.title) : "（名もなきシーン）";
+    return ''
+      + '<div class="scene-card'+(sc.id===state.ui.sceneId?" active":"")+'" data-id="'+esc(sc.id)+'">'
+      +   '<div class="grip" data-grip="1" title="掴んで並べ替え">⠿</div>'
+      +   '<div class="scene-main">'
+      +     '<div class="scene-no">'+pad2(i+1)+'</div>'
+      +     '<div class="scene-name'+(sc.title?"":" empty")+'">'+nm+'</div>'
+      +     '<div class="scene-meta">'
+      +       '<span class="chip '+st.cls+'" data-act="status">'+esc(st.label)+'</span>'
+      +       '<span class="scene-count">'+countChars(sc.body).toLocaleString()+'字</span>'
+      +       '<span class="dots">'+dots+'</span>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div class="scene-move">'
+      +     '<button data-act="up" title="上へ">▲</button>'
+      +     '<button data-act="down" title="下へ">▼</button>'
+      +   '</div>'
+      + '</div>';
+  }).join("");
+}
+
+function renderEditorHead(){
+  var sc = curScene();
+  var ti = $("#sceneTitle");
+  var ta = $("#body");
+  if(!sc){
+    ti.value = ""; ti.disabled = true;
+    ta.value = ""; ta.disabled = true;
+  } else {
+    ti.disabled = false; ta.disabled = false;
+    if(document.activeElement !== ti) ti.value = sc.title;
+    if(document.activeElement !== ta && ta.value !== sc.body) ta.value = sc.body;
+  }
+  var tb = $("#toolbar");
+  tb.innerHTML = state.tagTypes.map(function(t,i){
+    var n = i+1;
+    return '<button class="tagbtn" data-tag="'+esc(t.label)+'" '
+      + 'title="'+esc(t.label)+'を挟む'+(n<=9?"（Ctrl+"+n+"）":"")+'" '
+      + 'style="color:'+t.color+';border-color:'+t.color+';background:'+hexToRgba(t.color,.10)+'">'
+      + esc(t.label)+'</button>';
+  }).join("") + '<span id="charCount"></span>';
+  renderCount();
+}
+
+function renderCount(){
+  var sc = curScene();
+  var el = $("#charCount");
+  if(!el) return;
+  if(!sc){ el.textContent = ""; return; }
+  var scene = countChars(sc.body);
+  var total = curScenes().reduce(function(a,s){ return a + countChars(s.body); }, 0);
+  el.textContent = "このシーン " + scene.toLocaleString() + "字 ／ 作品 " + total.toLocaleString() + "字";
+}
+
+function renderOverlay(){
+  var sc = curScene();
+  var ov = $("#overlay");
+  var text = sc ? $("#body").value : "";
+  var tags = findTags(text);
+  var out = "", pos = 0;
+  for(var i=0;i<tags.length;i++){
+    var t = tags[i];
+    var c = colorOf(t.kind);
+    out += esc(text.slice(pos, t.s));
+    out += '<span class="tg" data-i="'+i+'" style="--tc:'+c+';--tbg:'+hexToRgba(c,.16)+'">'
+         + esc(text.slice(t.s, t.e)) + '</span>';
+    pos = t.e;
+  }
+  out += esc(text.slice(pos)) + "\n";
+  ov.innerHTML = out;
+  ov.scrollTop = $("#body").scrollTop;
+  ov.scrollLeft = $("#body").scrollLeft;
+}
+
+function renderTags(){
+  var scope = state.ui.tagScope;
+  var wrap = $("#tagList");
+  var items = [];
+  var pool = scope === "work" ? curScenes() : (curScene() ? [curScene()] : []);
+  pool.forEach(function(sc, si){
+    var idx = curScenes().indexOf(sc);
+    var text = (sc.id === state.ui.sceneId) ? $("#body").value : sc.body;
+    findTags(text).forEach(function(t){
+      items.push({ sceneId:sc.id, sceneNo:idx+1, sceneTitle:sc.title, tag:t, text:text });
+    });
+  });
+
+  $$("#tagScope button").forEach(function(b){
+    b.classList.toggle("on", b.dataset.scope === scope);
+  });
+  var lbl = $("#tabTagLabel");
+  if(lbl) lbl.innerHTML = "印" + (items.length ? '<span class="badge">'+items.length+'</span>' : "");
+
+  if(!items.length){
+    wrap.innerHTML = '<div class="empty-note">印はまだ一つもございません。<br><br>'
+      + '本文で気になる箇所を選び、<br>上の色つきボタンを押すと挟まります。</div>';
+    return;
+  }
+  wrap.innerHTML = items.map(function(it, i){
+    var c = colorOf(it.tag.kind);
+    var known = !!tagTypeByLabel(it.tag.kind);
+    return ''
+      + '<div class="tag-item" data-i="'+i+'" style="border-left-color:'+c+'">'
+      +   '<div class="th">'
+      +     '<span class="tag-kind" style="background:'+hexToRgba(c,.16)+';color:'+c+'">'+esc(it.tag.kind)+(known?"":" ?")+'</span>'
+      +     '<span class="tag-scene">'+pad2(it.sceneNo)+' '+esc(it.sceneTitle||"（無題）")+'</span>'
+      +   '</div>'
+      +   '<div class="tag-body'+(it.tag.content?"":" empty")+'">'+esc(it.tag.content||"（中身なし）")+'</div>'
+      +   '<div class="tag-ctx">'+esc(contextOf(it.text, it.tag))+'</div>'
+      +   '<div class="tag-acts">'
+      +     '<button class="btn sm" data-act="goto">その場所へ</button>'
+      +     '<button class="btn sm" data-act="resolve">片付ける</button>'
+      +   '</div>'
+      + '</div>';
+  }).join("");
+  wrap._items = items;
+}
+
+/* =========================================================
+ *  4. 操作
+ * =======================================================*/
+
+/* --- シーン --- */
+function addScene(){
+  flushEditor();
+  $("#body").blur();
+  $("#sceneTitle").blur();
+  var sc = { id:uid(), workId:state.ui.workId, title:"", body:"", status:"draft", updatedAt:Date.now() };
+  var list = curScenes();
+  var lastIdx = list.length ? state.scenes.indexOf(list[list.length-1]) : state.scenes.length-1;
+  state.scenes.splice(lastIdx+1, 0, sc);
+  state.ui.sceneId = sc.id;
+  save(); renderAll();
+  if(window.innerWidth < 900) showPane("paneWrite");
+  $("#sceneTitle").focus();
+}
+
+function selectScene(id){
+  if(state.ui.sceneId === id) return;
+  flushEditor();
+  // 本文欄に触れたまま別のシーンへ移っても、確実に中身が入れ替わるように
+  $("#body").blur();
+  $("#sceneTitle").blur();
+  state.ui.sceneId = id;
+  save();
+  renderAll();
+  $("#body").scrollTop = 0;
+  $("#overlay").scrollTop = 0;
+}
+
+function moveScene(id, dir){
+  var list = curScenes();
+  var i = list.map(function(s){return s.id;}).indexOf(id);
+  var j = i + dir;
+  if(i < 0 || j < 0 || j >= list.length) return;
+  reorderScenes(list.map(function(s,k){
+    if(k===i) return list[j].id;
+    if(k===j) return list[i].id;
+    return s.id;
+  }));
+}
+
+function reorderScenes(idsInOrder){
+  var byId = {};
+  state.scenes.forEach(function(s){ byId[s.id] = s; });
+  var others = state.scenes.filter(function(s){ return s.workId !== state.ui.workId; });
+  var ordered = idsInOrder.map(function(id){ return byId[id]; }).filter(Boolean);
+  state.scenes = ordered.concat(others);
+  save(); renderScenes(); renderCount();
+}
+
+function deleteScene(id){
+  var sc = state.scenes.filter(function(s){return s.id===id;})[0];
+  if(!sc) return;
+  var n = countChars(sc.body);
+  var name = sc.title || "（無題のシーン）";
+  if(!confirm("「"+name+"」を削除いたします。\n本文 "+n+"字も一緒に消え、元に戻せません。\n\nよろしいですか。")) return;
+  state.scenes = state.scenes.filter(function(s){ return s.id !== id; });
+  var list = curScenes();
+  if(!list.length){
+    var ns = { id:uid(), workId:state.ui.workId, title:"", body:"", status:"draft", updatedAt:Date.now() };
+    state.scenes.push(ns);
+    list = [ns];
+  }
+  if(state.ui.sceneId === id) state.ui.sceneId = list[0].id;
+  save(); renderAll();
+}
+
+function cycleStatus(id){
+  var sc = state.scenes.filter(function(s){return s.id===id;})[0];
+  if(!sc) return;
+  var i = STATUSES.map(function(s){return s.id;}).indexOf(sc.status);
+  sc.status = STATUSES[(i+1) % STATUSES.length].id;
+  sc.updatedAt = Date.now();
+  save(); renderScenes();
+}
+
+/* --- 本文 --- */
+function flushEditor(){
+  var sc = curScene();
+  if(!sc) return;
+  var ta = $("#body"), ti = $("#sceneTitle");
+  var changed = false;
+  if(ta.value !== sc.body){ sc.body = ta.value; changed = true; }
+  if(ti.value !== sc.title){ sc.title = ti.value; changed = true; }
+  if(changed){ sc.updatedAt = Date.now(); }
+  return changed;
+}
+
+function insertTag(label){
+  var ta = $("#body");
+  var sc = curScene();
+  if(!sc) return;
+  ta.focus();
+  var s = ta.selectionStart, e = ta.selectionEnd;
+  var open = "[" + label + ":";
+  var close = "]";
+  var v = ta.value;
+  var at = e; // 選んだ文字の直後に挟む（本文は消さない）
+  ta.value = v.slice(0, at) + open + close + v.slice(at);
+  var caret = at + open.length;
+  ta.setSelectionRange(caret, caret);
+  onBodyInput();
+  toast("「"+label+"」を挟みました");
+}
+
+function resolveTag(item){
+  var sc = state.scenes.filter(function(s){return s.id===item.sceneId;})[0];
+  if(!sc) return;
+  var isCur = (sc.id === state.ui.sceneId);
+  var text = isCur ? $("#body").value : sc.body;
+  // 位置がずれていないか、切り出した文字列で確認する
+  if(text.slice(item.tag.s, item.tag.e) !== item.tag.raw){
+    renderTags();
+    toast("本文が変わったため、もう一度お試しください");
+    return;
+  }
+  var next = text.slice(0, item.tag.s) + text.slice(item.tag.e);
+  if(isCur){
+    var ta = $("#body");
+    var caret = Math.min(item.tag.s, next.length);
+    ta.value = next;
+    ta.setSelectionRange(caret, caret);
+    onBodyInput();
+  } else {
+    sc.body = next;
+    sc.updatedAt = Date.now();
+    save(); renderScenes(); renderTags(); renderCount();
+  }
+  toast("印を片付けました");
+}
+
+function gotoTag(item){
+  if(item.sceneId !== state.ui.sceneId){
+    selectScene(item.sceneId);
+  }
+  if(window.innerWidth < 900) showPane("paneWrite");
+  var ta = $("#body");
+  ta.focus();
+  ta.setSelectionRange(item.tag.s, item.tag.e);
+  // オーバーレイの該当位置を測って、その行へ寄せる
+  renderOverlay();
+  var spans = $$("#overlay .tg");
+  var target = null;
+  var tags = findTags(ta.value);
+  for(var i=0;i<tags.length;i++){
+    if(tags[i].s === item.tag.s){ target = spans[i]; break; }
+  }
+  if(target){
+    var top = target.offsetTop - ($("#editorWrap").clientHeight/3);
+    ta.scrollTop = Math.max(0, top);
+    $("#overlay").scrollTop = ta.scrollTop;
+  }
+}
+
+var inputTimer = null;
+function onBodyInput(){
+  var sc = curScene();
+  if(!sc) return;
+  sc.body = $("#body").value;
+  sc.updatedAt = Date.now();
+  renderOverlay();
+  renderCount();
+  save();
+  clearTimeout(inputTimer);
+  inputTimer = setTimeout(function(){ renderScenes(); renderTags(); }, 450);
+}
+
+/* --- 画面切替（スマホ） --- */
+function showPane(id){
+  state.ui.pane = id;
+  $$("main > .pane").forEach(function(p){ p.classList.toggle("show", p.id === id); });
+  $$("#tabbar button").forEach(function(b){ b.classList.toggle("on", b.dataset.pane === id); });
+  save();
+}
+
+/* =========================================================
+ *  5. 並べ替え（ポインタイベント＝指でも動く）
+ * =======================================================*/
+(function setupDrag(){
+  var list = $("#sceneList");
+  var dragEl = null, pid = null;
+
+  list.addEventListener("pointerdown", function(e){
+    var grip = e.target.closest("[data-grip]");
+    if(!grip) return;
+    e.preventDefault();
+    dragEl = grip.closest(".scene-card");
+    if(!dragEl) return;
+    pid = e.pointerId;
+    try { grip.setPointerCapture(pid); } catch(err){}
+    dragEl.classList.add("dragging");
+  });
+
+  list.addEventListener("pointermove", function(e){
+    if(!dragEl || e.pointerId !== pid) return;
+    e.preventDefault();
+    var cards = $$(".scene-card", list).filter(function(c){ return c !== dragEl; });
+    var placed = false;
+    for(var i=0;i<cards.length;i++){
+      var r = cards[i].getBoundingClientRect();
+      if(e.clientY < r.top + r.height/2){
+        list.insertBefore(dragEl, cards[i]);
+        placed = true;
+        break;
+      }
+    }
+    if(!placed) list.appendChild(dragEl);
+  });
+
+  function finish(e){
+    if(!dragEl) return;
+    dragEl.classList.remove("dragging");
+    dragEl = null; pid = null;
+    var ids = $$(".scene-card", list).map(function(c){ return c.dataset.id; });
+    reorderScenes(ids);
+  }
+  list.addEventListener("pointerup", finish);
+  list.addEventListener("pointercancel", finish);
+})();
+
+/* =========================================================
+ *  6. 書き出し
+ * =======================================================*/
+function buildExport(kind){
+  var w = curWork();
+  var list = curScenes();
+  var d = new Date();
+  var date = d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+  // 現在編集中の本文を反映
+  flushEditor();
+
+  if(kind === "tags"){
+    var lines = [];
+    var total = 0, byKind = {};
+    var blocks = [];
+    list.forEach(function(sc, i){
+      var tags = findTags(sc.body);
+      if(!tags.length) return;
+      var b = ["## " + pad2(i+1) + " " + (sc.title || "（無題）")];
+      tags.forEach(function(t){
+        total++;
+        byKind[t.kind] = (byKind[t.kind]||0)+1;
+        b.push("- [" + t.kind + "] " + (t.content || "（中身なし）"));
+        b.push("    " + contextOf(sc.body, t, 34));
+      });
+      blocks.push(b.join("\n"));
+    });
+    var head = "# 《" + (w.title||"無題") + "》 印の一覧　" + date;
+    var sum = Object.keys(byKind).map(function(k){ return k+" "+byKind[k]; }).join("・");
+    head += "\n全 " + total + " 件" + (sum ? "（" + sum + "）" : "");
+    if(!total){
+      return head + "\n\n印はまだ一つもございません。";
+    }
+    head += "\n\n本文中の印を、シーンごとに並べたものです。"
+          + "\n「▮」は印が入っていた位置を示します。\n";
+    return head + "\n" + blocks.join("\n\n") + "\n";
+  }
+
+  if(kind === "full"){
+    var out = ["# " + (w.title||"無題"), ""];
+    list.forEach(function(sc, i){
+      out.push("## " + pad2(i+1) + " " + (sc.title || "（無題）"));
+      out.push("");
+      out.push(sc.body.replace(/\s+$/,""));
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  // 清書版
+  var clean = list.map(function(sc){
+    return stripTags(sc.body)
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/^\s+|\s+$/g, "");
+  }).filter(function(t){ return t.length; });
+  return clean.join("\n\n") + "\n";
+}
+
+function download(filename, text){
+  var blob = new Blob([text], { type:"text/plain;charset=utf-8" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 400);
+  meta.lastExportAt = Date.now();
+  try { localStorage.setItem(KEY_META, JSON.stringify(meta)); } catch(e){}
+  renderSaveState();
+}
+
+function copyText(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){
+      toast("コピーいたしました");
+    }, function(){ fallbackCopy(text); });
+  } else fallbackCopy(text);
+}
+function fallbackCopy(text){
+  var el = $("#exportOut");
+  if(el){ el.focus(); el.select(); }
+  try {
+    document.execCommand("copy");
+    toast("コピーいたしました");
+  } catch(e){
+    toast("コピーできませんでした。手で選んでお使いください");
+  }
+}
+
+/* =========================================================
+ *  7. JSON の出し入れ
+ * =======================================================*/
+function exportJson(){
+  flushEditor();
+  var name = "novel_" + (curWork().title||"無題").replace(/[\\\/:*?"<>|\s]/g,"_").slice(0,24)
+           + "_" + stamp() + ".json";
+  download(name, JSON.stringify(state, null, 2));
+  toast("JSONを書き出しました");
+}
+
+function importJson(file){
+  var r = new FileReader();
+  r.onload = function(){
+    var d;
+    try { d = JSON.parse(r.result); }
+    catch(e){ alert("このファイルは読み取れませんでした。JSONの形が壊れているようです。"); return; }
+    if(!d || !Array.isArray(d.scenes)){
+      alert("このアプリの書き出したJSONではないようです。");
+      return;
+    }
+    var nScenes = d.scenes.length;
+    if(!confirm("読み込むと、今このアプリに入っている原稿はすべて置き換わります。\n\n"
+      + "読み込むもの：シーン "+nScenes+"件\n"
+      + "念のため、今の内容を控えのJSONとして自動で書き出してからにいたします。\n\n"
+      + "よろしいですか。")) return;
+    // 控えを先に落とす
+    download("novel_控え_" + stamp() + ".json", JSON.stringify(state, null, 2));
+    setTimeout(function(){
+      state = normalize(d);
+      save(true);
+      renderAll();
+      closeModal();
+      toast("読み込みました");
+    }, 500);
+  };
+  r.readAsText(file, "utf-8");
+}
+
+/* =========================================================
+ *  8. モーダル
+ * =======================================================*/
+function closeModal(){ $("#modalRoot").innerHTML = ""; }
+
+function openModal(title, bodyHtml, footHtml){
+  $("#modalRoot").innerHTML =
+    '<div class="modal-bg" data-bg="1"><div class="modal">'
+    + '<div class="modal-head"><h2>'+esc(title)+'</h2><div style="flex:1"></div>'
+    + '<button class="btn ghost sm" data-close="1">閉じる</button></div>'
+    + '<div class="modal-body">'+bodyHtml+'</div>'
+    + (footHtml ? '<div class="modal-foot">'+footHtml+'</div>' : '')
+    + '</div></div>';
+}
+
+/* --- 書き出しモーダル --- */
+var exportKind = "tags";
+function openExport(){
+  openModal("書き出し",
+      '<div class="tabs" id="expTabs">'
+    +   '<button data-k="tags" class="on">印の一覧</button>'
+    +   '<button data-k="full">全文（印つき）</button>'
+    +   '<button data-k="clean">清書版</button>'
+    + '</div>'
+    + '<p class="muted" id="expNote" style="font-size:12px;margin:10px 0 8px"></p>'
+    + '<textarea id="exportOut" readonly></textarea>',
+      '<button class="btn" id="expCopy">コピー</button>'
+    + '<button class="btn primary" id="expDl">ファイルに保存</button>'
+  );
+  fillExport();
+  $("#expTabs").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-k]");
+    if(!b) return;
+    exportKind = b.dataset.k;
+    $$("#expTabs button").forEach(function(x){ x.classList.toggle("on", x.dataset.k===exportKind); });
+    fillExport();
+  });
+  $("#expCopy").addEventListener("click", function(){ copyText($("#exportOut").value); });
+  $("#expDl").addEventListener("click", function(){
+    var w = (curWork().title||"無題").replace(/[\\\/:*?"<>|\s]/g,"_").slice(0,24);
+    var suffix = exportKind==="tags" ? "印一覧" : (exportKind==="full" ? "全文" : "清書");
+    var ext = exportKind==="clean" ? ".txt" : ".md";
+    download(w + "_" + suffix + "_" + stamp() + ext, $("#exportOut").value);
+    toast("保存しました");
+  });
+}
+function fillExport(){
+  var notes = {
+    tags:  "本文に挟んだ印だけを、シーンごとに抜き出したものです。これをそのままAIに読ませれば、どこをどう直すべきか項目ごとに返ってまいります。原稿の全文を渡さずに済みます。",
+    full:  "原稿を頭から終わりまで、印を残したまま一本にしたものです。全体の流れごと見てほしいときに。",
+    clean: "印もコメントもすべて取り除いた、本文だけでございます。投稿や提出にはこちらを。"
+  };
+  $("#expNote").textContent = notes[exportKind];
+  $("#exportOut").value = buildExport(exportKind);
+}
+
+/* --- 作品モーダル --- */
+function openWorks(){
+  var rows = state.works.map(function(w){
+    var n = scenesOf(state, w.id).length;
+    var chars = scenesOf(state, w.id).reduce(function(a,s){ return a+countChars(s.body); },0);
+    return '<div class="tagtype-row" data-wid="'+esc(w.id)+'">'
+      + '<input class="field" data-f="title" value="'+esc(w.title)+'" style="flex:1 1 auto">'
+      + '<span class="muted" style="font-size:11px;white-space:nowrap">'+n+'シーン '+chars.toLocaleString()+'字</span>'
+      + '<button class="btn sm danger" data-act="delwork">削除</button>'
+      + '</div>';
+  }).join("");
+  openModal("作品",
+      '<h3 class="sect">作品の一覧</h3><div id="workRows">'+rows+'</div>'
+    + '<div class="sep"></div>'
+    + '<div class="row"><input class="field" id="newWorkTitle" placeholder="新しい作品の名前" style="flex:1 1 160px">'
+    + '<button class="btn primary" id="addWork">＋ 追加</button></div>',
+      '<button class="btn primary" data-close="1">閉じる</button>');
+
+  $("#workRows").addEventListener("input", function(e){
+    var f = e.target.closest('[data-f="title"]');
+    if(!f) return;
+    var wid = f.closest("[data-wid]").dataset.wid;
+    var w = state.works.filter(function(x){return x.id===wid;})[0];
+    if(w){ w.title = f.value; save(); renderWorkSel(); }
+  });
+  $("#workRows").addEventListener("click", function(e){
+    var b = e.target.closest('[data-act="delwork"]');
+    if(!b) return;
+    var wid = b.closest("[data-wid]").dataset.wid;
+    if(state.works.length <= 1){ alert("作品が一つだけのときは削除できません。"); return; }
+    var w = state.works.filter(function(x){return x.id===wid;})[0];
+    var n = scenesOf(state, wid).length;
+    if(!confirm("「"+(w.title||"無題")+"」を、シーン "+n+"件ごと削除いたします。\n元に戻せません。よろしいですか。")) return;
+    state.works = state.works.filter(function(x){ return x.id!==wid; });
+    state.scenes = state.scenes.filter(function(s){ return s.workId!==wid; });
+    if(state.ui.workId === wid){
+      state.ui.workId = state.works[0].id;
+      var l = curScenes();
+      state.ui.sceneId = l.length ? l[0].id : null;
+    }
+    state = normalize(state);
+    save(); renderAll(); openWorks();
+  });
+  $("#addWork").addEventListener("click", function(){
+    var t = $("#newWorkTitle").value.trim() || "無題の作品";
+    var w = { id:uid(), title:t };
+    state.works.push(w);
+    state.scenes.push({ id:uid(), workId:w.id, title:"", body:"", status:"draft", updatedAt:Date.now() });
+    state.ui.workId = w.id;
+    state = normalize(state);
+    save(); renderAll(); closeModal();
+    toast("「"+t+"」を作りました");
+  });
+}
+
+/* --- 設定モーダル --- */
+function openSettings(){
+  openModal("設定",
+      '<h3 class="sect">印の種類</h3>'
+    + '<div id="ttRows"></div>'
+    + '<div class="row" style="margin-top:8px">'
+    +   '<input class="field" id="ttNew" placeholder="新しい印の名前（例：伏線）" style="flex:1 1 140px">'
+    +   '<input class="field hexin" id="ttNewHex" placeholder="#35C759" value="#35C759">'
+    +   '<button class="btn primary" id="ttAdd">＋ 追加</button>'
+    + '</div>'
+    + '<p class="muted" style="font-size:11px;margin:8px 0 0">'
+    + '本文では <code>[名前:中身]</code> と書けば印になります。<code>/* … */</code> は「コメント」として扱います。'
+    + '名前を変えても、既に本文へ書いた古い名前は自動では変わりません。</p>'
+
+    + '<div class="sep"></div>'
+    + '<h3 class="sect">見た目</h3>'
+    + '<label class="toggle"><input type="checkbox" id="optSerif"'+(state.ui.serif?" checked":"")+'>本文を明朝体にする</label>'
+    + '<label class="toggle"><input type="checkbox" id="optHl"'+(state.ui.highlight?" checked":"")+'>本文の印に色をつける</label>'
+    + '<p class="muted" style="font-size:11px;margin:4px 0 0">色つきの印がずれて見えるときは、この印をお外しください。文字の入力には影響ありません。</p>'
+
+    + '<div class="sep"></div>'
+    + '<h3 class="sect">控え（JSON）</h3>'
+    + '<div class="row">'
+    +   '<button class="btn" id="jsonOut">JSONとして書き出し</button>'
+    +   '<button class="btn" id="jsonIn">JSONから読み込み</button>'
+    +   '<input type="file" id="jsonFile" accept=".json,application/json" style="display:none">'
+    + '</div>'
+    + '<p class="muted" style="font-size:11px;margin:8px 0 0">'
+    + 'このアプリは書いた端から自動で保存いたしますが、保存先はこの端末のこのブラウザのみでございます。'
+    + '別の端末へ移すとき、また念のための控えには、JSONの書き出しをお使いください。'
+    + '読み込みの前には、今の内容の控えを自動で書き出します。</p>'
+
+    + '<div class="sep"></div>'
+    + '<h3 class="sect">この作品</h3>'
+    + '<button class="btn danger sm" id="delScene">いま開いているシーンを削除</button>',
+
+      '<button class="btn primary" data-close="1">閉じる</button>');
+
+  drawTagTypes();
+
+  $("#optSerif").addEventListener("change", function(){
+    state.ui.serif = this.checked;
+    document.body.classList.toggle("serif", this.checked);
+    save();
+  });
+  $("#optHl").addEventListener("change", function(){
+    state.ui.highlight = this.checked;
+    document.body.classList.toggle("nohl", !this.checked);
+    save();
+  });
+  $("#ttAdd").addEventListener("click", function(){
+    var label = $("#ttNew").value.trim();
+    if(!label){ toast("名前をお決めください"); return; }
+    if(/[\[\]［］:：\/\*]/.test(label)){ toast("その記号は名前に使えません"); return; }
+    if(tagTypeByLabel(label)){ toast("同じ名前が既にございます"); return; }
+    state.tagTypes.push({ id:uid(), label:label.slice(0,12), color:normHex($("#ttNewHex").value,"#35C759") });
+    $("#ttNew").value = "";
+    save(); drawTagTypes(); renderEditorHead(); renderOverlay(); renderTags(); renderScenes();
+  });
+  $("#jsonOut").addEventListener("click", exportJson);
+  $("#jsonIn").addEventListener("click", function(){ $("#jsonFile").click(); });
+  $("#jsonFile").addEventListener("change", function(){
+    if(this.files && this.files[0]) importJson(this.files[0]);
+  });
+  $("#delScene").addEventListener("click", function(){
+    var sc = curScene();
+    if(!sc){ return; }
+    closeModal();
+    deleteScene(sc.id);
+  });
+}
+
+function drawTagTypes(){
+  var wrap = $("#ttRows");
+  if(!wrap) return;
+  wrap.innerHTML = state.tagTypes.map(function(t){
+    return '<div class="tagtype-row" data-tid="'+esc(t.id)+'">'
+      + '<span class="swatch" style="background:'+t.color+'"></span>'
+      + '<input class="field" data-f="label" value="'+esc(t.label)+'" style="flex:1 1 auto">'
+      + '<input class="field hexin" data-f="color" value="'+esc(t.color)+'">'
+      + '<button class="btn sm danger" data-act="deltt">削除</button>'
+      + '</div>';
+  }).join("");
+
+  wrap.oninput = function(e){
+    var row = e.target.closest("[data-tid]");
+    if(!row) return;
+    var t = state.tagTypes.filter(function(x){return x.id===row.dataset.tid;})[0];
+    if(!t) return;
+    if(e.target.dataset.f === "label") t.label = e.target.value.slice(0,12);
+    save();
+    renderEditorHead(); renderOverlay(); renderTags(); renderScenes();
+  };
+  wrap.onchange = function(e){
+    var row = e.target.closest("[data-tid]");
+    if(!row || e.target.dataset.f !== "color") return;
+    var t = state.tagTypes.filter(function(x){return x.id===row.dataset.tid;})[0];
+    if(!t) return;
+    t.color = normHex(e.target.value, t.color);
+    e.target.value = t.color;
+    row.querySelector(".swatch").style.background = t.color;
+    save();
+    renderEditorHead(); renderOverlay(); renderTags(); renderScenes();
+  };
+  wrap.onclick = function(e){
+    var b = e.target.closest('[data-act="deltt"]');
+    if(!b) return;
+    var row = b.closest("[data-tid]");
+    if(state.tagTypes.length <= 1){ alert("印の種類が一つだけのときは削除できません。"); return; }
+    state.tagTypes = state.tagTypes.filter(function(x){ return x.id !== row.dataset.tid; });
+    save(); drawTagTypes();
+    renderEditorHead(); renderOverlay(); renderTags(); renderScenes();
+  };
+}
+
+/* =========================================================
+ *  9. 出来事の結びつけ
+ * =======================================================*/
+function bind(){
+  // 作品の切替
+  $("#workSel").addEventListener("change", function(){
+    flushEditor();
+    $("#body").blur();
+    $("#sceneTitle").blur();
+    state.ui.workId = this.value;
+    var l = curScenes();
+    state.ui.sceneId = l.length ? l[0].id : null;
+    save(); renderAll();
+  });
+  $("#btnWorks").addEventListener("click", openWorks);
+  $("#btnExport").addEventListener("click", openExport);
+  $("#btnSettings").addEventListener("click", openSettings);
+  $("#btnAddScene").addEventListener("click", addScene);
+
+  // シーン一覧
+  $("#sceneList").addEventListener("click", function(e){
+    var card = e.target.closest(".scene-card");
+    if(!card) return;
+    var id = card.dataset.id;
+    var act = e.target.closest("[data-act]");
+    if(act){
+      var a = act.dataset.act;
+      if(a === "up")     { moveScene(id, -1); return; }
+      if(a === "down")   { moveScene(id, 1);  return; }
+      if(a === "status") { cycleStatus(id);   return; }
+    }
+    if(e.target.closest("[data-grip]")) return;
+    selectScene(id);
+    if(window.innerWidth < 900) showPane("paneWrite");
+  });
+
+  // 本文
+  var ta = $("#body"), ti = $("#sceneTitle");
+  ta.addEventListener("input", onBodyInput);
+  ta.addEventListener("scroll", function(){
+    var ov = $("#overlay");
+    ov.scrollTop = ta.scrollTop;
+    ov.scrollLeft = ta.scrollLeft;
+  });
+  ti.addEventListener("input", function(){
+    var sc = curScene();
+    if(!sc) return;
+    sc.title = ti.value;
+    sc.updatedAt = Date.now();
+    save();
+    clearTimeout(inputTimer);
+    inputTimer = setTimeout(function(){ renderScenes(); renderTags(); }, 400);
+  });
+
+  // 印のボタン
+  $("#toolbar").addEventListener("click", function(e){
+    var b = e.target.closest("[data-tag]");
+    if(b) insertTag(b.dataset.tag);
+  });
+
+  // 印の一覧
+  $("#tagScope").addEventListener("click", function(e){
+    var b = e.target.closest("[data-scope]");
+    if(!b) return;
+    state.ui.tagScope = b.dataset.scope;
+    save(); renderTags();
+  });
+  $("#tagList").addEventListener("click", function(e){
+    var b = e.target.closest("[data-act]");
+    if(!b) return;
+    var item = $("#tagList")._items[ +b.closest(".tag-item").dataset.i ];
+    if(!item) return;
+    if(b.dataset.act === "goto") gotoTag(item);
+    if(b.dataset.act === "resolve") resolveTag(item);
+  });
+
+  // 下部タブ
+  $("#tabbar").addEventListener("click", function(e){
+    var b = e.target.closest("[data-pane]");
+    if(!b) return;
+    if(b.dataset.pane === "paneTags") renderTags();
+    showPane(b.dataset.pane);
+  });
+
+  // モーダルを閉じる
+  $("#modalRoot").addEventListener("click", function(e){
+    if(e.target.dataset.bg || e.target.closest("[data-close]")) closeModal();
+  });
+
+  // 鍵盤の近道（PC）
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape"){ closeModal(); return; }
+    if((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey){
+      var n = parseInt(e.key, 10);
+      if(n >= 1 && n <= 9 && state.tagTypes[n-1]){
+        e.preventDefault();
+        insertTag(state.tagTypes[n-1].label);
+      }
+    }
+  });
+
+  // 離れる前に確実に保存
+  window.addEventListener("beforeunload", function(){
+    flushEditor();
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(err){}
+  });
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState === "hidden"){ flushEditor(); save(true); }
+  });
+
+  // 幅が変わったとき
+  window.addEventListener("resize", function(){
+    if(window.innerWidth >= 900){
+      $$("main > .pane").forEach(function(p){ p.classList.add("show"); });
+    } else {
+      showPane(state.ui.pane || "paneWrite");
+    }
+  });
+}
+
+/* =========================================================
+ * 10. 起動
+ * =======================================================*/
+load();
+bind();
+renderAll();
+if(window.innerWidth < 900) showPane(state.ui.pane || "paneScenes");
+window.__novel = { state:function(){ return state; }, findTags:findTags, buildExport:buildExport, countChars:countChars };
+
+})();
+</script>
+</body>
+</html>
