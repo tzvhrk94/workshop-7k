@@ -185,6 +185,23 @@ body.serif #overlay,body.serif #body{font-family:var(--mincho)}
 }
 body.nohl #overlay .tg{background:transparent;box-shadow:none}
 
+/* 全角・半角の混在チェック（レイアウトを一切動かさない装飾のみ） */
+#overlay .mx{background:transparent}
+body.chk #overlay .hw-sp{background:rgba(255,90,95,.20);box-shadow:0 -1px 0 rgba(255,90,95,.75) inset,0 1px 0 rgba(255,90,95,.75) inset}
+body.chk #overlay .fw-sp{background:rgba(18,179,166,.13)}
+body.chk #overlay .hw-ascii{background:rgba(255,176,32,.26)}
+body.chk #overlay .hw-kana{background:rgba(255,90,95,.34);box-shadow:0 0 0 1.5px var(--coral) inset}
+#mixCount{
+  font-size:11px;font-weight:800;white-space:nowrap;color:var(--ink-soft);
+  display:none;margin-left:auto;
+}
+body.chk #mixCount{display:inline}
+body.chk #charCount{margin-left:10px}
+.tagbtn.tool{
+  color:var(--ink-mid);border-color:var(--rule-strong);background:var(--paper);
+}
+body.chk .tagbtn.tool{color:#fff;border-color:var(--accent);background:var(--accent)}
+
 /* ---------- タグ一覧 ---------- */
 #tagScope{display:flex;gap:4px;align-items:center}
 #tagScope button{
@@ -505,6 +522,8 @@ function normalize(d){
     sceneId: ui.sceneId,
     serif: !!ui.serif,
     highlight: ui.highlight !== false,
+    mixcheck: !!ui.mixcheck,
+    cleanCopy: ui.cleanCopy !== false,
     tagScope: ui.tagScope === "work" ? "work" : "scene",
     pane: ui.pane || "paneScenes"
   };
@@ -587,6 +606,33 @@ function findTags(text){
 function stripTags(text){
   return text.replace(RE_BRACKET, "").replace(RE_COMMENT, "");
 }
+
+/* --- 全角・半角の混在 --- */
+// ①半角スペース ②全角スペース ③半角カナ ④半角の英数記号
+var RE_MIX = /( +)|(　+)|([｡-ﾟ]+)|([!-~]+)/g;
+
+function markMix(chunk){
+  var out = "", pos = 0, m;
+  RE_MIX.lastIndex = 0;
+  while((m = RE_MIX.exec(chunk)) !== null){
+    out += esc(chunk.slice(pos, m.index));
+    var cls = m[1] ? "hw-sp" : m[2] ? "fw-sp" : m[3] ? "hw-kana" : "hw-ascii";
+    out += '<span class="mx '+cls+'">'+esc(m[0])+'</span>';
+    pos = m.index + m[0].length;
+  }
+  return out + esc(chunk.slice(pos));
+}
+
+function mixCounts(text){
+  var t = stripTags(text);   // 印の中身は数えない
+  var c = function(re){ var r = t.match(re); return r ? r.length : 0; };
+  return {
+    sp:   c(/ /g),
+    fsp:  c(/　/g),
+    kana: c(/[｡-ﾟ]/g),
+    ascii:c(/[!-~]/g)
+  };
+}
 function countChars(text){
   // 改行と空白を除いた本文の字数（印は数えない）
   return stripTags(text).replace(/\s/g, "").length;
@@ -621,6 +667,7 @@ function renderAll(){
   renderSaveState();
   document.body.classList.toggle("serif", !!state.ui.serif);
   document.body.classList.toggle("nohl", !state.ui.highlight);
+  document.body.classList.toggle("chk", !!state.ui.mixcheck);
 }
 
 function renderWorkSel(){
@@ -694,18 +741,35 @@ function renderEditorHead(){
       + 'title="'+esc(t.label)+'を挟む'+(n<=9?"（Ctrl+"+n+"）":"")+'" '
       + 'style="color:'+t.color+';border-color:'+t.color+';background:'+hexToRgba(t.color,.10)+'">'
       + esc(t.label)+'</button>';
-  }).join("") + '<span id="charCount"></span>';
+  }).join("")
+  + '<button class="tagbtn tool" data-tool="mix" title="全角と半角の混ざりを見る">全半</button>'
+  + '<span id="mixCount"></span><span id="charCount"></span>';
   renderCount();
 }
 
 function renderCount(){
   var sc = curScene();
   var el = $("#charCount");
+  var mx = $("#mixCount");
   if(!el) return;
-  if(!sc){ el.textContent = ""; return; }
-  var scene = countChars(sc.body);
-  var total = curScenes().reduce(function(a,s){ return a + countChars(s.body); }, 0);
+  if(!sc){ el.textContent = ""; if(mx) mx.textContent = ""; return; }
+  var body = (document.activeElement === $("#body")) ? $("#body").value : sc.body;
+  var scene = countChars(body);
+  var total = curScenes().reduce(function(a,s){
+    return a + countChars(s.id === sc.id ? body : s.body);
+  }, 0);
   el.textContent = "このシーン " + scene.toLocaleString() + "字 ／ 作品 " + total.toLocaleString() + "字";
+
+  if(mx){
+    if(!state.ui.mixcheck){ mx.textContent = ""; return; }
+    var c = mixCounts(body);
+    var parts = [];
+    if(c.sp)    parts.push('<span style="color:var(--coral)">半角空白 '+c.sp+'</span>');
+    if(c.kana)  parts.push('<span style="color:var(--coral)">半角カナ '+c.kana+'</span>');
+    if(c.ascii) parts.push('<span style="color:#B07A00">半角英数 '+c.ascii+'</span>');
+    if(c.fsp)   parts.push('<span style="color:var(--accent)">全角空白 '+c.fsp+'</span>');
+    mx.innerHTML = parts.length ? parts.join("　") : '<span style="color:var(--green)">混在なし</span>';
+  }
 }
 
 function renderOverlay(){
@@ -717,12 +781,12 @@ function renderOverlay(){
   for(var i=0;i<tags.length;i++){
     var t = tags[i];
     var c = colorOf(t.kind);
-    out += esc(text.slice(pos, t.s));
+    out += markMix(text.slice(pos, t.s));
     out += '<span class="tg" data-i="'+i+'" style="--tc:'+c+';--tbg:'+hexToRgba(c,.16)+'">'
          + esc(text.slice(t.s, t.e)) + '</span>';
     pos = t.e;
   }
-  out += esc(text.slice(pos)) + "\n";
+  out += markMix(text.slice(pos)) + "\n";
   ov.innerHTML = out;
   ov.scrollTop = $("#body").scrollTop;
   ov.scrollLeft = $("#body").scrollLeft;
@@ -927,6 +991,28 @@ function gotoTag(item){
     ta.scrollTop = Math.max(0, top);
     $("#overlay").scrollTop = ta.scrollTop;
   }
+}
+
+/* コピー／切り取りのとき、クリップボードからだけ印を落とす（本文には残す） */
+function onCopyCut(e){
+  if(!state.ui.cleanCopy) return;
+  var ta = $("#body");
+  var s = ta.selectionStart, en = ta.selectionEnd;
+  if(s === en) return;
+  var raw = ta.value.slice(s, en);
+  var cleaned = stripTags(raw);
+  if(cleaned === raw) return;            // 印が無いなら普段どおりに任せる
+  var cb = e.clipboardData || window.clipboardData;
+  if(!cb) return;                        // 使えない場合は普段どおり
+  cb.setData("text/plain", cleaned);
+  e.preventDefault();
+  if(e.type === "cut"){
+    var v = ta.value;
+    ta.value = v.slice(0, s) + v.slice(en);   // 本文からは印ごと消す
+    ta.setSelectionRange(s, s);
+    onBodyInput();
+  }
+  toast("印を外してコピーいたしました");
 }
 
 var inputTimer = null;
@@ -1255,6 +1341,13 @@ function openSettings(){
     + '<p class="muted" style="font-size:11px;margin:4px 0 0">色つきの印がずれて見えるときは、この印をお外しください。文字の入力には影響ありません。</p>'
 
     + '<div class="sep"></div>'
+    + '<h3 class="sect">コピー</h3>'
+    + '<label class="toggle"><input type="checkbox" id="optClean"'+(state.ui.cleanCopy?" checked":"")+'>コピーするとき、印を外して渡す</label>'
+    + '<p class="muted" style="font-size:11px;margin:4px 0 0">'
+    + '本文を選んでコピーすると、<code>[考証:…]</code> のたぐいを取り除いたものがクリップボードに入ります。'
+    + '本文の側はそのまま残りますのでご安心を。印ごと持ち出したいときは、この印をお外しください。</p>'
+
+    + '<div class="sep"></div>'
     + '<h3 class="sect">控え（JSON）</h3>'
     + '<div class="row">'
     +   '<button class="btn" id="jsonOut">JSONとして書き出し</button>'
@@ -1282,6 +1375,10 @@ function openSettings(){
   $("#optHl").addEventListener("change", function(){
     state.ui.highlight = this.checked;
     document.body.classList.toggle("nohl", !this.checked);
+    save();
+  });
+  $("#optClean").addEventListener("change", function(){
+    state.ui.cleanCopy = this.checked;
     save();
   });
   $("#ttAdd").addEventListener("click", function(){
@@ -1403,10 +1500,20 @@ function bind(){
     inputTimer = setTimeout(function(){ renderScenes(); renderTags(); }, 400);
   });
 
-  // 印のボタン
+  ta.addEventListener("copy", onCopyCut);
+  ta.addEventListener("cut", onCopyCut);
+
+  // 印のボタン・道具のボタン
   $("#toolbar").addEventListener("click", function(e){
     var b = e.target.closest("[data-tag]");
-    if(b) insertTag(b.dataset.tag);
+    if(b){ insertTag(b.dataset.tag); return; }
+    var t = e.target.closest('[data-tool="mix"]');
+    if(t){
+      state.ui.mixcheck = !state.ui.mixcheck;
+      document.body.classList.toggle("chk", state.ui.mixcheck);
+      renderCount();
+      save();
+    }
   });
 
   // 印の一覧
